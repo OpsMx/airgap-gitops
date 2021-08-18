@@ -314,10 +314,8 @@ deploymentConfigurations:
         userAttributeMapping: {}
       ldap:
         enabled: true
-        url: ldap://34.70.66.153:3268/dc=net #389  NOTE: Different port number, group are at the top-level and groupSearchBase is MANDATORY
-        userDnPattern: cn={0},ou=ninja,DC=opsmx # Results in full DN
-        managerDn: cn=opsmxadmn,cn=users,dc=opsmx,dc=net
-        managerPassword: NewOpsMx123!
+        url: "ldap://RELEASE_NAME-openldap:389/dc=example,dc=org"
+        userDnPattern: "cn={0}"
       x509:
         enabled: false
       iap:
