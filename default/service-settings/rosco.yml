@@ -1,1 +1,8 @@
-artifactId: quay.io/opsmxpublic/ubi8-spin-rosco:0.23.0
+artifactId: quay.io/opsmxpublic/ubi8-spin-rosco:0.25.0
+kubernetes:
+  volumes:
+  - id: oes-cacerts
+    mountPath: /etc/pki/ca-trust/extracted/java
+    type: secret
+    readOnly: true
+

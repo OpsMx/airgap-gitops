@@ -1,3 +1,10 @@
-artifactId: quay.io/opsmxpublic/ubi8-spin-fiat:1.14.1
+artifactId: quay.io/opsmxpublic/ubi8-spin-fiat:1.16.0
 env:
   JAVA_OPTS: "-XX:MaxRAMPercentage=100.0"
+kubernetes:
+  volumes:
+  - id: oes-cacerts
+    mountPath: /etc/pki/ca-trust/extracted/java
+    type: secret
+    readOnly: true
+

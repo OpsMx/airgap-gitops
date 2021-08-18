@@ -1,8 +1,9 @@
-artifactId: quay.io/opsmxpublic/ubi8-oes-orca:2.18.0
+artifactId: quay.io/opsmxpublic/ubi8-oes-orca:2.20.3
 kubernetes:
   volumes:
   - id: oes-cacerts
-    mountPath: /etc/ssl/certs/java
+    mountPath: /etc/pki/ca-trust/extracted/java
+    #mountPath: /etc/ssl/certs/java
     type: secret
     readOnly: true
 env:

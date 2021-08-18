@@ -1,6 +1,12 @@
-artifactId: quay.io/opsmxpublic/ubi8-spin-gate:1.20.0
+artifactId: quay.io/opsmxpublic/ubi8-oes-spin-gate:1.22.1
 healthEndpoint: /health
 kubernetes:
   useExecHealthCheck: false
+  volumes:
+  - id: oes-cacerts
+    mountPath: /etc/pki/ca-trust/extracted/java
+    type: secret
+    readOnly: true
+
 env:
   JAVA_OPTS: "-XX:MaxRAMPercentage=100.0"
