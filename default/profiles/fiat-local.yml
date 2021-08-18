@@ -1,0 +1,18 @@
+auth:
+  groupMembership:
+    service: ldap
+    ldap:
+      url: ldap://34.70.66.153:3268/dc=net #389  NOTE: Different port number, group are at the top-level and groupSearchBase is MANDATORY
+      userDnPattern: cn={0},ou=ninja,DC=opsmx # Results in full DN
+      groupSearchBase: ou=newaccess,DC=opsmx  # This is the root in our case and is mandatory field, so removed from top level
+      groupSearchFilter: (&(member={0})(objectClass=group))
+      groupRoleAttributes: cn
+      managerDn: cn=opsmxadmn,cn=users,dc=opsmx,dc=net
+      managerPassword: NewOpsMx123!
+      #url: ldap://RELEASE_NAME-openldap:389
+      #managerDn: cn=admin,dc=example,dc=org
+      #managerPassword: opsmxadmin123
+      #groupSearchBase: ou=groups,dc=example,dc=org
+      #groupSearchFilter: member={0}
+      #groupRoleAttributes: cn
+      #userDnPattern: cn={0},dc=example,dc=org

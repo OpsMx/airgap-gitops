@@ -1,0 +1,52 @@
+{
+ "application": "sampleapp",
+ "description": "This sample pipeline shows the Github auto trigger and deploys manifest to kubernetes by fetching the artifact from github",
+ "expectedArtifacts": [],
+ "id": "f264dd61-5d3a-443d-8d8a-6481c536ad69",
+ "index": 4,
+ "keepWaitingPipelines": false,
+ "lastModifiedBy": "admin",
+ "limitConcurrent": true,
+ "name": "git-trigger-deploy",
+ "spelEvaluator": "v4",
+ "stages": [
+  {
+   "account": "default",
+   "cloudProvider": "kubernetes",
+   "manifestArtifact": {
+    "artifactAccount": "opsmxdemo_account",
+    "id": "06904142-4a52-48e2-80d8-faad99b8d793",
+    "name": "kubedeploys/opsmx-basedeploy.yml",
+    "reference": "https://api.github.com/repos/opsmx/sample-pipeline-manifest/contents/kubedeploys/opsmx-basedeploy.yml",
+    "type": "github/file",
+    "version": "main"
+   },
+   "moniker": {
+    "app": "sampleapp"
+   },
+   "name": "Deploy (Manifest)",
+   "refId": "2",
+   "requisiteStageRefIds": [],
+   "skipExpressionEvaluation": false,
+   "source": "artifact",
+   "trafficManagement": {
+    "enabled": false,
+    "options": {
+     "enableTraffic": false
+    }
+   },
+   "type": "deployManifest"
+  }
+ ],
+ "triggers": [
+  {
+   "enabled": true,
+   "expectedArtifactIds": [],
+   "project": "OpsMx",
+   "slug": "restapp",
+   "source": "github",
+   "type": "git"
+  }
+ ],
+ "updateTs": "1624937020000"
+}

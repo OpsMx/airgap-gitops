@@ -1,0 +1,52 @@
+{
+ "application": "sampleapp",
+ "description": "This sample pipeline shows the docker registry auto trigger and deploys manifest to kubernetes by fetching the artifact from github.",
+ "expectedArtifacts": [],
+ "id": "2a672e74-1e68-46a2-8aa9-1abb86ef10f3",
+ "index": 3,
+ "keepWaitingPipelines": false,
+ "lastModifiedBy": "admin",
+ "limitConcurrent": true,
+ "name": "docker-trigger-deploy",
+ "spelEvaluator": "v4",
+ "stages": [
+  {
+   "account": "default",
+   "cloudProvider": "kubernetes",
+   "manifestArtifact": {
+    "artifactAccount": "opsmxdemo_account",
+    "id": "a6638171-78ed-41c3-84ff-ac5d72e7ef43",
+    "name": "simple-deploy.yml",
+    "reference": "https://api.github.com/repos/opsmx/sample-pipeline-manifest/contents/kubedeploys/simple-deploy.yml",
+    "type": "github/file",
+    "version": "main"
+   },
+   "moniker": {
+    "app": "sampleapp"
+   },
+   "name": "Deploy (Manifest)",
+   "refId": "2",
+   "requisiteStageRefIds": [],
+   "skipExpressionEvaluation": false,
+   "source": "artifact",
+   "trafficManagement": {
+    "enabled": false,
+    "options": {
+     "enableTraffic": false
+    }
+   },
+   "type": "deployManifest"
+  }
+ ],
+ "triggers": [
+  {
+   "account": "my-docker-registry",
+   "enabled": true,
+   "organization": "opsmx11",
+   "registry": "index.docker.io",
+   "repository": "opsmx11/terraspin",
+   "type": "docker"
+  }
+ ],
+ "updateTs": "1624937013000"
+}
