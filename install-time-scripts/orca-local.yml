@@ -1,0 +1,1513 @@
+pollers:
+  oldPipelineCleanup:
+    enabled: true                  # This enables old pipeline execution cleanup (default: false)
+    intervalMs: 36000000            # How many milliseconds between pipeline cleanup runs (default: 1hr or 3600000)
+    thresholdDays: 10              # How old a pipeline execution must be to be deleted (default: 30)
+    minimumPipelineExecutions: 10   # How many executions to keep around (default: 5)
+mine:
+  #baseUrl: http://40.91.116.27:8090
+   baseUrl: http://51.143.117.181:8090
+   #baseUrl: http://40.91.76.245:8090/autopilot
+
+#Terraform Custom WebHook Stage
+webhook:
+  preconfigured:
+  - label: OPA Policy Stage
+    type: OPAPolicyStage
+    enabled: true
+    description: Spinnaker Policy Evaluation and Decision Stage
+    method: POST
+    customHeaders:
+      Content-Type:
+        - application/json
+    url: ${parameterValues['POLICY_PROXY']}${parameterValues['OPA_POLICYPATH']}
+    payload: '{"startTime": ${execution.startTime}}'
+    parameters:
+    - label: Policy Proxy
+      name: POLICY_PROXY
+      description:  The Policy Proxy Hostname and Port
+      defaultValue: "http://oes-server-svc:8085"
+      type: string
+    - label: Policy Path
+      name: OPA_POLICYPATH
+      description: The path to the Policy that applies to this stage
+      defaultValue: "e.g: /v1/data/<yourpolicy import location>"
+      type: string
+  - label: "Manage-DNSRecords"
+    type: createDNS
+    enabled: true
+    description: Custom stage to create the DNS records
+    method: PUT
+    url: https://api.godaddy.com/v1/domains/${parameterValues['domain']}/records/${parameterValues['recordtype']}/${parameterValues['dnsname']}
+    customHeaders:
+      Authorization: sso-key dKiBPKVJMfav_BQxow3zCmhzbbpb5tWMz1n:BPdHhMEQqfTA6NKcRBNhQs
+      Content-Type: application/json
+    payload: |-
+      [
+        {
+          "data": "${parameterValues['data']}",
+          "ttl": ${parameterValues['ttl']}  
+        }
+      ]
+    parameters:
+    - label: Domain
+      name: domain
+      description: Domain name, eg opsmx.com, opsmx.net
+      type: string
+      defaultValue: opsmx.com
+    - label: DNS Name
+      name: dnsname
+      description: DNS that is needed to create in Godaddy, eg *.customer
+      type: string
+    - label: RecordType
+      name: recordtype
+      description: Type of record, eg A,AA,CNAME
+      defaultValue: A
+      type: string
+    - label: Ip Addesss
+      name: data
+      description: Adress of the server IP to be mapped to domain
+      type: string
+    - label: TTL
+      name: ttl
+      description: Time to Live
+      defaultValue: 600
+      type: string
+  - label: "JIRA: Wait for state"
+    type: waitJiraState
+    enabled: true
+    description: Custom stage that waits for a specific state on a Jira Issue
+    method: GET
+    url: https://devopsmx.atlassian.net/rest/api/latest/issue/${parameterValues['issue']}
+    customHeaders:
+      Authorization: Basic YWNjb3VudC1hZG1pbkBvcHNteC5pbzp1anhDcEhWWEdUVXN3emVRdFZwRkMzODk=
+      Content-Type: application/json
+    failPipeline: true
+    progressJsonPath: "fields.status.name"
+    payload: ""
+    retryStatusCodes:
+      - 200
+    statusJsonPath: "fields.status.name"
+    statusUrlResolution: "getMethod"
+    successStatuses: ${parameterValues['success']}
+    retryStatuses: ${parameterValue['retry']}
+    terminalStatuses: ${parameterValues['terminate']}
+    canceledStatuses: ${parameterValues['cancel']}
+    waitBeforeMonitor: "1"
+    waitForCompletion: true
+    parameters:
+    - label: JIRA Issue ID
+      name: issue
+      description: "The JIRA issue, the default relies on JIRA issue ID extraction"
+      type: string
+      defaultValue: ${jira_issue}
+    - label: JIRA Retry States
+      name: retry
+      description: "JIRA issue states that Retry the stage e.g,: To Do, In Progress, etc."
+      type: string
+      defaultValue: To Do, In Progress
+    - label: JIRA Success States
+      name: success
+      description: "JIRA issue States that progress the pipeline, e.g,: In Verificaiton etc."
+      type: string
+      defaultValue: In Verification
+    - label: JIRA Temination States
+      name: terminate
+      description: "JIRA issue states that terminates the pipeline, e.g,: PR Raised etc."
+      type: string
+      defaultValue: PR Raised
+    - label: JIRA Canceled States
+      name: cancel
+      description: "JIRA issue states that cancel the pipeline e.g,: Done, etc."
+      type: string
+      defaultValue: Done
+  - label: "JIRA: Create An Issue"
+    type: addJiraIss
+    enabled: true
+    description: Custom stage that add an Issue in Jira
+    method: POST
+    url: https://devopsmx.atlassian.net/rest/api/2/issue/
+    customHeaders:
+      Authorization: Basic YWNjb3VudC1hZG1pbkBvcHNteC5pbzp1anhDcEhWWEdUVXN3emVRdFZwRkMzODk=
+      Content-Type: application/json
+    payload: |-
+      {
+        "fields": {
+            "project":
+            {
+              "key": "ENG"
+            },
+            "summary": "Test Ticket",
+            "description": "Jira Integration with Spinnaker",
+            "issuetype": {
+              "name": "Task"
+            }
+        }
+      }
+    parameters:
+    - label: Project ID ("ENG" or "DOCS")
+      name: projectid
+      description: Which JIRA project do you want to create an item in?
+      type: string
+    - label: Issue Type ("Improvement", "Task", "New Feature", or "Bug")
+      name: issuetype
+      description: issuetype
+      type: string
+    - label: Issue Summary
+      name: summary
+      description: summary
+      type: string
+    - label: Description
+      name: description
+      description: description
+      type: string
+  - label: "JIRA: Comment on Issue"
+    type: comJiraIss
+    enabled: true
+    description: Custom stage that posts a comment in a Jira Issue
+    method: POST
+    url: https://devopsmx.atlassian.net/rest/api/latest/issue/${parameterValues['issue']}/comment
+    customHeaders:
+      Authorization: Basic YWNjb3VudC1hZG1pbkBvcHNteC5pbzp1anhDcEhWWEdUVXN3emVRdFZwRkMzODk=
+      Content-Type: application/json
+    payload: |-
+      {
+        "body": "${parameterValues['message']}"
+      }
+    parameters:
+    - label: Issue ID
+      name: issue
+      description: Issue
+      type: string
+    - label: Message
+      name: message
+      description: message
+      type: string
+  - label: "JIRA: Update Issue"
+    type: updJiraIss
+    enabled: true
+    description: Custom stage that updates an Issue in Jira
+    method: PUT
+    url: https://devopsmx.atlassian.net/rest/api/latest/issue/${parameterValues['issue']}
+    customHeaders:
+      Authorization: Basic YWNjb3VudC1hZG1pbkBvcHNteC5pbzp1anhDcEhWWEdUVXN3emVRdFZwRkMzODk=
+      Content-Type: application/json
+    payload: |-
+      {
+        "update": {
+            "summary": [
+                {
+                    "set": "${parameterValues['summary']}"
+                }
+            ],
+            "description": [
+                {
+                    "set": "${parameterValues['description']}"
+                }
+            ]
+        }
+      }
+    parameters:
+    - label: Issue ID
+      name: issue
+      description: Issue
+      type: string
+    - label: Summary
+      name: summary
+      description: summary
+      type: string
+    - label: Description
+      name: description
+      description: description
+  - label: "JIRA: Transition Issue"
+    type: transJiraIss
+    enabled: true
+    description: Custom stage that transitions an Issue in Jira
+    method: POST
+    url: https://devopsmx.atlassian.net/rest/api/latest/issue/${parameterValues['issue']}/transitions
+    customHeaders:
+      Authorization: Basic YWNjb3VudC1hZG1pbkBvcHNteC5pbzp1anhDcEhWWEdUVXN3emVRdFZwRkMzODk=
+      Content-Type: application/json
+    payload: |-
+      {
+        "transition": {
+          "id": "${parameterValues['targetStageID']}"
+        }
+      }
+    parameters:
+    - label: Issue ID
+      name: issue
+      description: Issue
+      type: string
+    - label: Target Stage ID
+      name: targetStageID
+      description: Target Stage ID (11 is "To Do", 21 is "In Progress", 31 is "In Review", 41 is "Done")
+      type: string
+  - label: Terraform-destroy
+    description: "To destroy terraform plan"
+    enabled: true
+    type: terraformCWDestroyStage
+#    url: "http://35.237.198.105:8888/api/v1/terraformDestroy"
+    url: "http://40.90.221.121:8090/api/v1/terraformDestroy"
+    method: POST
+    payload: |-
+        {
+          "applicationName": "${execution['application']}",
+          "pipelineName": "${execution['name']}",
+          "pipelineId": "${execution['pipelineConfigId']}"
+        }
+
+  - label: Terraform-apply
+    description: "To apply terraform plan"
+    enabled: true
+    type: terraformCWApplyStage
+#    url: "http://35.237.198.105:8888/api/v1/terraformApply"
+    url: "http://40.90.221.121:8090/api/v1/terraformApply"
+    method: POST
+    payload: |-
+        {
+          "applicationName": "${execution['application']}",
+          "pipelineName": "${execution['name']}",
+          "pipelineId": "${execution['pipelineConfigId']}"
+        }
+
+
+
+  - label: Terraform-plan
+    description: "To create terraform plan"
+    enabled: true
+    type: terraformCWPlanStage
+#    url: "http://35.237.198.105:8888/api/v1/terraformPlan"
+    url: "http://40.90.221.121:8090/api/v1/terraformPlan"
+    method: POST
+    payload: |-
+      {
+        "gitAccount": "${parameterValues['gitAccount']}",
+        "cloudAccount": "${parameterValues['cloudAccount']}",
+        "applicationName": "${execution['application']}",
+        "pipelineName": "${execution['name']}",
+        "pipelineId": "${execution['pipelineConfigId']}",
+        "plan": "${parameterValues['plan']}"
+      }
+    parameters:
+      - label: "Cloud provider account"
+        description: ""
+        name: cloudAccount
+        type: string
+      - label: "Git Account"
+        description: ""
+        name: gitAccount
+        type: string
+      - label: "Plan"
+        description: ""
+        name: plan
+        type: string
+
+
+
+job:
+  preconfigured:
+    kubernetes: 
+      - label: TSPlanJob-shell
+        cloudProvider: kubernetes
+        application: spin
+        description: Stage for terraspin plan operation
+        account: ibm-pspin
+        type: customTSPlanJobStage
+        waitForCompletion: true
+        parameters:
+          - defaultValue: ""
+            description: "Please enter the artifact account name from artifactsaccounts.json, Account where you have tf script present."
+            label: Tf script account
+            mapping: 'manifest.spec.template.spec.containers[0].env[0].value'
+            name: scriptaccount
+          - defaultValue: "" 
+            description: "Please enter the Git Repo Account of TF script."
+            label: Tf Plan script Repo
+            mapping: 'manifest.spec.template.spec.containers[0].env[1].value'
+            name: repo
+          - defaultValue: "" 
+            description: Please enter Location of terraform script in the repo.
+            label: Tf Location
+            mapping: 'manifest.spec.template.spec.containers[0].env[2].value'
+            name: location
+          - defaultValue: "" 
+            description: Please enter overrideVariableFile path if you want to override variables.
+            label: Override file
+            mapping: 'manifest.spec.template.spec.containers[0].env[3].value'
+            name: overridefile
+          - defaultValue: "" 
+            description: "Please enter the artifact account where you want to save tf state."
+            label: Tf State Account
+            mapping: 'manifest.spec.template.spec.containers[0].env[4].value'
+            name: stateaccount
+          - defaultValue: "" 
+            description: Please enter the location  where you want to save terraform intermediate state like gitrepo, s3bucket.
+            label: Artifact Repo
+            mapping: 'manifest.spec.template.spec.containers[0].env[5].value'
+            name: staterepo
+          - defaultValue: "" 
+            description: Please enter a unique artifactid to identify the terraform state.
+            label: Artifact UUId
+            mapping: 'manifest.spec.template.spec.containers[0].env[6].value'
+            name: artifactid
+        manifest:
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            generateName: terraspinplanjob-
+            namespace: nightly
+          spec:
+            backoffLimit: 0
+            template:
+              spec:
+                containers:
+                  - command:
+                      - run.sh
+                    env:
+                      - name: scriptaccount
+                        value:
+                      - name: repo
+                        value: 
+                      - name: location
+                        value: 
+                      - name: overridefile
+                        value: 
+                      - name: stateaccount
+                        value: 
+                      - name: staterepo
+                        value: 
+                      - name: artifactid
+                        value: 
+                      - name: command
+                        value: plan
+                    image: 'quay.io/opsmxpublic/customterraformstage:v1'
+                    imagePullPolicy: Always
+                    name: terraspinplan
+                    volumeMounts:
+                      - mountPath: /home/terraspin/opsmx/app/config/
+                        name: opsmx-terraspin-backend-config
+                restartPolicy: Never
+                volumes:
+                  - secret:
+                      secretName: terraspinbackendconfig
+                    name: opsmx-terraspin-backend-config
+      - label: TSApplyJob-shell
+        cloudProvider: kubernetes
+        application: spin
+        description: Stage for terraspin Apply operation
+        account: ibm-pspin
+        type: customTSApplyJobStage
+        waitForCompletion: true
+        parameters:
+          - defaultValue: ""
+            description: "Please enter the artifact account name from artifactsaccounts.json, Account where you have tf script present."
+            label: Tf script account
+            mapping: 'manifest.spec.template.spec.containers[0].env[0].value'
+            name: scriptaccount
+          - defaultValue: "" 
+            description: "Please enter the Git Repo Account of TF script."
+            label: Tf Apply script Repo
+            mapping: 'manifest.spec.template.spec.containers[0].env[1].value'
+            name: repo
+          - defaultValue: "" 
+            description: Please enter Location of terraform script in the repo.
+            label: Tf Location
+            mapping: 'manifest.spec.template.spec.containers[0].env[2].value'
+            name: location
+          - defaultValue: "" 
+            description: Please enter overrideVariableFile path if you want to override variables.
+            label: Override file
+            mapping: 'manifest.spec.template.spec.containers[0].env[3].value'
+            name: overridefile
+          - defaultValue: "" 
+            description: "Please enter the artifact account where you want to save tf state."
+            label: Tf State Account
+            mapping: 'manifest.spec.template.spec.containers[0].env[4].value'
+            name: stateaccount
+          - defaultValue: "" 
+            description: Please enter the location  where you want to save terraform intermediate state like gitrepo, s3bucket.
+            label: Artifact Repo
+            mapping: 'manifest.spec.template.spec.containers[0].env[5].value'
+            name: staterepo
+          - defaultValue: "" 
+            description: Please enter a unique artifactid to identify the terraform state.
+            label: Artifact UUId
+            mapping: 'manifest.spec.template.spec.containers[0].env[6].value'
+            name: artifactid
+        manifest:
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            generateName: terraspinapplyjob-
+            namespace: nightly
+          spec:
+            backoffLimit: 0
+            template:
+              spec:
+                containers:
+                  - command:
+                      - run.sh
+                    env:
+                      - name: scriptaccount
+                        value:
+                      - name: repo
+                        value: 
+                      - name: location
+                        value: 
+                      - name: overridefile
+                        value: 
+                      - name: stateaccount
+                        value: 
+                      - name: staterepo
+                        value: 
+                      - name: artifactid
+                        value: 
+                      - name: command
+                        value: apply
+                    image: 'quay.io/opsmxpublic/customterraformstage:v1'
+                    imagePullPolicy: Always
+                    name: terraspinapply
+                    volumeMounts:
+                      - mountPath: /home/terraspin/opsmx/app/config/
+                        name: opsmx-terraspin-backend-config
+                restartPolicy: Never
+                volumes:
+                  - secret:
+                      secretName: terraspinbackendconfig
+                    name: opsmx-terraspin-backend-config
+      - label: TSDestroyJob-shell
+        application: spin
+        cloudProvider: kubernetes
+        credentials: default
+        description: Stage for terraspin destroy operation
+        account: ibm-pspin
+        type: customTSDestroyJobStage
+        waitForCompletion: true
+        parameters:
+          - defaultValue: ""
+            description: "Please enter the artifact account name from artifactsaccounts.json, Account where you have tf script present."
+            label: Tf script account
+            mapping: 'manifest.spec.template.spec.containers[0].env[0].value'
+            name: scriptaccount
+          - defaultValue: "" 
+            description: "Please enter the Git Repo Account of TF script."
+            label: Tf Apply script Repo
+            mapping: 'manifest.spec.template.spec.containers[0].env[1].value'
+            name: repo
+          - defaultValue: "" 
+            description: Please enter Location of terraform script in the repo.
+            label: Tf Location
+            mapping: 'manifest.spec.template.spec.containers[0].env[2].value'
+            name: location
+          - defaultValue: "" 
+            description: Please enter overrideVariableFile path if you want to override variables.
+            label: Override file
+            mapping: 'manifest.spec.template.spec.containers[0].env[3].value'
+            name: overridefile
+          - defaultValue: "" 
+            description: "Please enter the artifact account where you want to save tf state."
+            label: Tf State Account
+            mapping: 'manifest.spec.template.spec.containers[0].env[4].value'
+            name: stateaccount
+          - defaultValue: "" 
+            description: Please enter the location  where you want to save terraform intermediate state like gitrepo, s3bucket.
+            label: Artifact Repo
+            mapping: 'manifest.spec.template.spec.containers[0].env[5].value'
+            name: staterepo
+          - defaultValue: "" 
+            description: Please enter a unique artifactid to identify the terraform state.
+            label: Artifact UUId
+            mapping: 'manifest.spec.template.spec.containers[0].env[6].value'
+            name: artifactid
+        manifest:
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            generateName: terraspindestroyjob-
+            namespace: nightly
+          spec:
+            backoffLimit: 0
+            template:
+              spec:
+                containers:
+                  - command:
+                      - run.sh
+                    env:
+                      - name: scriptaccount
+                        value:
+                      - name: repo
+                        value: 
+                      - name: location
+                        value: 
+                      - name: overridefile
+                        value: 
+                      - name: stateaccount
+                        value: 
+                      - name: staterepo
+                        value: 
+                      - name: artifactid
+                        value: 
+                      - name: command
+                        value: destroy
+                    image: 'quay.io/opsmxpublic/customterraformstage:v1'
+                    imagePullPolicy: Always
+                    name: terraspindestroy
+                    volumeMounts:
+                      - mountPath: /home/terraspin/opsmx/app/config/
+                        name: opsmx-terraspin-backend-config
+                restartPolicy: Never
+                volumes:
+                  - secret:
+                      secretName: terraspinbackendconfig
+                    name: opsmx-terraspin-backend-config
+      - label: SQLStage
+        type: customJobSQLStage
+        description: Stage for db migration
+        cloudProvider: kubernetes
+        account: ibm-pspin
+        credentials: default
+        waitForCompletion: true
+        application: dbdemo
+        parameters:
+          - label: dbaccount
+            name: pass db account name
+            description: pass db account name on which you want to do SQL operation.
+            mapping: manifest.spec.template.spec.containers[0].env[0].value
+            defaultValue: "example1"
+          - label: artifactaccount
+            name: pass artifact account name
+            description: pass artifact account name on which your sql file present.
+            mapping: manifest.spec.template.spec.containers[0].env[1].value
+            defaultValue: "example2"
+          - label: SQLfile path
+            name: SQLfile path
+            description: pass migration script contains.
+            mapping: manifest.spec.template.spec.containers[0].env[2].value
+            defaultValue: "example3"
+          - label: namespace
+            name: namespace
+            description: pass namespace in which you want to deploy k8 object.
+            mapping: manifest.metadata.namespace
+            defaultValue: "example4"
+        manifest:
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            name: spinautodb
+            namespace:
+          spec:
+            backoffLimit: 0
+            template:
+              spec:
+                restartPolicy: Never
+                volumes:
+                  - name: opsmx-spinautodb-dbaccount-config
+                    configMap:
+                      name: spinautodbaccountconfig
+                  - name: opsmx-spinautodb-artifactaccount-config
+                    configMap:
+                      name: spinautodbartifactaccountconfig
+                containers:
+                  - name: spinautodb
+                    image: 'docker.io/opsmx11/spinautodb:v0.9'
+                    imagePullPolicy: Always
+                    env:
+                      - name: dbaccount
+                        value:
+                      - name: artifactaccount
+                        value:
+                      - name: dbscript
+                        value:
+                    command: ["run.sh"]
+                    volumeMounts:
+                    - name: opsmx-spinautodb-dbaccount-config
+                      mountPath: /home/spinautodb/opsmx/db/
+                    - name: opsmx-spinautodb-artifactaccount-config
+                      mountPath: /home/spinautodb/opsmx/artifact/
+      - label: UpdatePR
+        cloudProvider: kubernetes
+        credentials: default
+        application: gitprtrigger
+        description: Stage for updatepr
+        account: ibm-pspin
+        type: customPRStage
+        waitForCompletion: true
+        parameters:
+          - defaultValue: "" 
+            description: Please enter the webhook url.
+            label: Webhook URL
+            mapping: 'manifest.spec.template.spec.containers[0].env[0].value'
+            name: url
+          - defaultValue: "" 
+            description: Please enter method.
+            label: Method
+            mapping: 'manifest.spec.template.spec.containers[0].env[1].value'
+            name: method
+          - defaultValue: "" 
+            description: Please enter payload.
+            label: Payload
+            mapping: 'manifest.spec.template.spec.containers[0].env[2].value'
+            name: payload
+        manifest:
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            labels:                                                                        
+              spinnakerlabel: deljob
+            generateName: updateprjob
+            namespace: default
+          spec:
+            backoffLimit: 0
+            template:
+              spec:
+                containers: 
+                  - command:
+                      - sh
+                      - /tmp/initscript/run.sh
+                    env:
+                      - name: url
+                        value: 
+                      - name: method
+                        value:
+                      - name: payload
+                        value: 
+                      - name: accesstoken
+                        valueFrom:
+                         secretKeyRef:
+                          key: accesstoken
+                          name: updatepr-secrets
+                    image: 'opsmxdev/apline-with-curl'
+                    imagePullPolicy: Always
+                    name: updatepr
+                    volumeMounts:
+                      - mountPath: /tmp/initscript/
+                        name: initscript
+                restartPolicy: Never
+                volumes:
+                  - configMap:
+                      default: 420
+                      name: updatepr-config
+                    name: initscript 
+      - label: autopilot
+        type: customJob for autopilot
+        description: Stage to perform canary analysic 
+        cloudProvider: kubernetes
+        account: ibm-pspin
+        waitForCompletion: true
+        application: spin
+        parameters:
+          - label: Username of OES
+            name: Username of OES
+            description: Username of OES
+            mapping: 'manifest.spec.template.spec.containers[0].args[0]'
+            defaultValue: ""
+          - label: Password of OES
+            name: password
+            description: Password of OES
+            mapping: 'manifest.spec.template.spec.containers[0].args[1]'
+            defaultValue: ""
+          - label: URL of OES
+            name: URL
+            description: URL of the OES
+            mapping: 'manifest.spec.template.spec.containers[0].args[2]'
+            defaultValue: ""
+          - label: Application Name
+            name: Name of application
+            description: Name of the application that is created in OES
+            mapping: 'manifest.spec.template.spec.containers[0].args[3]'
+            defaultValue: ""
+          - label: Canary Time 
+            name: Begin Canary Anaalysis After Mins 
+            description: Begin Canary Anaalysis After Mins from 0 to 10 min
+            mapping: 'manifest.spec.template.spec.containers[0].args[4]'
+            defaultValue: ""
+          - label: Canary Intetrval Time
+            name: Canary Analysis interval Mins
+            description: Canary Analysis interval Mins from 0 to 10 min
+            mapping: 'manifest.spec.template.spec.containers[0].args[5]'
+            defaultValue: ""
+          - label: Min Canary Resultscore
+            name: Mininim scoree 
+            description: minimumCanaryResultScore like 80
+            mapping: 'manifest.spec.template.spec.containers[0].args[6]'
+            defaultValue: ""
+          - label: Min Metric Resultscore
+            name: minimumMetricsResultScore
+            description: canaryHealthCheckHandler minimum MetricsResultScore like 95
+            mapping: 'manifest.spec.template.spec.containers[0].args[7]'
+            defaultValue: ""
+          - label: Canary Resultscore
+            name: Canary Result Score
+            description: canarySuccessCriteria Canary Result Score like 95
+            mapping: 'manifest.spec.template.spec.containers[0].args[8]'
+            defaultValue: ""
+          - label: Success Metric Resultscore
+            name: canarySuccessCriteria of Success Metric 
+            description: canarySuccessCriteria of Success Metric Result score like 80
+            mapping: 'manifest.spec.template.spec.containers[0].args[9]'
+            defaultValue: ""
+          - label: Lifetime
+            name: lifetimeHours
+            description: lifetime in Hours like 0.005
+            mapping: 'manifest.spec.template.spec.containers[0].args[10]'
+            defaultValue: ""
+          - label: Log ServiceName
+            name: Name of service for logs
+            description: Name of service for logs which is created in application
+            mapping: 'manifest.spec.template.spec.containers[0].args[11]'
+            defaultValue: ""
+          - label: LogKey 
+            name: Key to filter Logs 
+            description: Key to filter logs with out "" like kubernetes.container_name
+            mapping: 'manifest.spec.template.spec.containers[0].args[12]'
+            defaultValue: ""
+          - label: LogBaseValue
+            name: Log Value to filter
+            description: Value to filter with out "" like oes33-baseline-visibility 
+            mapping: 'manifest.spec.template.spec.containers[0].args[13]'
+            defaultValue: ""
+          - label: LogCanaryValue
+            name: Log Canary Value to filter
+            description: Value to filter with out "" like oes33-canary-visibility
+            mapping: 'manifest.spec.template.spec.containers[0].args[14]'
+            defaultValue: ""
+          - label: Metric ServiceName
+            name: Service Name of the metric
+            description: Serivce that is created in applocation
+            mapping: 'manifest.spec.template.spec.containers[0].args[15]'
+            defaultValue: ""
+          - label: MetricKey
+            name: MetricKey
+            description: Metric Key to filter without "" like job_name
+            mapping: 'manifest.spec.template.spec.containers[0].args[16]'
+            defaultValue: ""
+          - label: MetricBaseValue
+            name: Metric Value 
+            description: Value to filter with "" like container='oes33-baseline-oes-gate', namespace='oes33-baseline'
+            mapping: 'manifest.spec.template.spec.containers[0].args[17]'
+            defaultValue: ""
+          - label: MetricCanaryValue
+            name: Metric Canary Value
+            description: Value to filter with "" like container='oes33-canary-oes-gate', namespace='oes33-baseline'
+            mapping: 'manifest.spec.template.spec.containers[0].args[18]'
+            defaultValue: ""
+          - label: Baseline StartTime 
+            name: baselineStartTimeMs
+            description: Baseline Start Time in Ms time like 12/28/2020 2:00:00 PM
+            mapping: 'manifest.spec.template.spec.containers[0].args[19]'
+            defaultValue: ""
+          - label: Canary StartTime 
+            name: canaryStartTimeMs
+            description: Canary Start Time in Ms time like 12/28/2022 5:00:00 PM
+            mapping: 'manifest.spec.template.spec.containers[0].args[20]'
+            defaultValue: ""
+        manifest:
+          apiVersion: batch/v1
+          kind: Job
+          metadata:                                                                 
+            labels:                                                                 
+              spinnakerlabel: deljob                                                
+            name: autopilotstage
+          spec:
+            backoffLimit: 0
+            template:
+              spec:
+                restartPolicy: Never
+                containers:
+                  - name: custom-autopilot-stage
+                    args:
+                       -
+                       -
+                       -
+                       -
+                       -
+                    image: 'maheshopsmx/autopilot:v3'
+                    imagePullPolicy: Always
+      - label: CustomnotificationStage
+        cloudProvider: kubernetes
+        credentials: default
+        application: gitprtrigger
+        description: Stage for email 
+        account: ibm-pspin
+        type: customnotification
+        waitForCompletion: true
+        parameters:
+          - defaultValue: "" 
+            description: Please enter the Email address
+            label: Email
+            mapping: 'manifest.spec.template.spec.containers[0].env[0].value'
+            name: email
+          - defaultValue: ""
+            description: Please enter CC mail address with "," as saperated for more mails.
+            label: CC Address
+            mapping: 'manifest.spec.template.spec.containers[0].env[1].value'
+            name: ccmail
+          - defaultValue: ""
+            description: Please enter Subject
+            label: Subject
+            mapping: 'manifest.spec.template.spec.containers[0].env[2].value'
+            name: subject
+          - defaultValue: ""
+            description: Please enter body message.
+            label: Body Message
+            mapping: 'manifest.spec.template.spec.containers[0].env[3].value'
+            name: body
+        manifest:
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            labels:                                                                        
+              spinnakerlabel: deljob
+            generateName: smtpjob
+            namespace: default
+          spec:
+            backoffLimit: 0
+            template:
+              spec:
+                containers:
+                  - command:
+                      - sh
+                      - /tmp/initscript/run.sh
+                    env:
+                      - name: email
+                        value: 
+                      - name: ccmail
+                        value:
+                      - name: subject
+                        value:
+                      - name: body
+                        value:
+                      - name: ssmtpemail                                  
+                        valueFrom:                                           
+                         secretKeyRef:                                       
+                          key: ssmtpemail                                   
+                          name: ssmtp-secrets
+                      - name: emailpassword                                    
+                        valueFrom:                                           
+                         secretKeyRef:                                       
+                          key: emailpassword                                  
+                          name: ssmtp-secrets
+                    image: 'opsmxdev/apline-with-curl'
+                    imagePullPolicy: Always
+                    name: email-notify
+                    volumeMounts:
+                      - mountPath: /tmp/initscript/
+                        name: initscript
+                restartPolicy: Never
+                volumes:
+                  - configMap:
+                      default: 420
+                      name: email-config
+                    name: initscript
+      - label: AzureSaaSOES
+        cloudProvider: kubernetes
+        credentials: default
+        application: spin
+        description: Stage for Azure SaaS OES via Terraform
+        account: ibm-pspin
+        propertyFile: azuresaas-terraform
+        type: customAzureSaaSTerraformstage
+        waitForCompletion: true
+        parameters:
+          - defaultValue: "" 
+            description: Please enter the  Client Type for SaaS setup in Azure (Internal/Customer)
+            label: Client
+            mapping: 'manifest.spec.template.spec.containers[0].env[0].value'
+            name: client
+          - defaultValue: ""
+            description: Please enter the  Client Name for SaaS setup in Azure
+            label: Client Name
+            mapping: 'manifest.spec.template.spec.containers[0].env[1].value'
+            name: clientname
+        manifest:
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            name: azuresaasjob
+            namespace: oes
+          spec:
+            backoffLimit: 0
+            template:
+              spec:
+                containers:
+                  - command:
+                      - bash
+                      - /tmp/initscript/run.sh
+                    env:
+                      - name: client
+                        value: 
+                      - name: clientname
+                        value:  
+                      - name: gitusername
+                        valueFrom:
+                         secretKeyRef:
+                          key: gitusername
+                          name: azuresaas-secrets
+                      - name: gitpassword
+                        valueFrom:
+                         secretKeyRef:
+                          key: gitpassword
+                          name: azuresaas-secrets
+                      - name: clientid
+                        valueFrom:
+                         secretKeyRef:
+                          key: clientid
+                          name: azuresaas-secrets
+                      - name: tenantid                                    
+                        valueFrom:                                           
+                         secretKeyRef:                                       
+                          key: tenantid                                   
+                          name: azuresaas-secrets
+                      - name: clientsecret                                    
+                        valueFrom:                                           
+                         secretKeyRef:                                       
+                          key: clientsecret                                  
+                          name: azuresaas-secrets
+                    image: 'maheshopsmx/maheshteraa:v8'
+                    imagePullPolicy: Always
+                    name: azuresaas-terraform
+                    volumeMounts:
+                      - mountPath: /tmp/initscript/
+                        name: initscript
+                restartPolicy: Never
+                volumes:
+                  - configMap:
+                      name: azure-saas-config
+                    name: initscript
+      - label: jmxRegressionStage
+        cloudProvider: kubernetes
+        application: spin
+        description: Stage to perform regression testing of Application
+        propertyFile: jmeter
+        account: ibm-pspin
+        type: customJobjmxRegressionStage
+        waitForCompletion: true
+        parameters:
+          - defaultValue: "OpsMx" 
+            description: Please enter the Organisation
+            label: Org
+            mapping: 'manifest.spec.template.spec.containers[0].env[0].value'
+            name: org
+          - defaultValue: "jmeter-regression-scripts" 
+            description: Please enter the github repo name 
+            label: Repo
+            mapping: 'manifest.spec.template.spec.containers[0].env[1].value'
+            name: repo
+          - defaultValue: "gitpr" 
+            description: Please enter the Jmeter script located folder
+            label: Folder 
+            mapping: 'manifest.spec.template.spec.containers[0].env[2].value'
+            name: folder
+          - defaultValue: "" 
+            description: Please enter the OES Gate
+            label: OES Gate URL
+            mapping: 'manifest.spec.template.spec.containers[0].env[3].value'
+            name: oesgate
+          - defaultValue: "" 
+            description: Please enter the OES UI URL
+            label: UI URL
+            mapping: 'manifest.spec.template.spec.containers[0].env[4].value'
+            name: oesui
+          - defaultValue: "443"
+            description: Please enter the port 
+            label: Port 
+            mapping: 'manifest.spec.template.spec.containers[0].env[5].value'
+            name: port
+          - defaultValue: "http"
+            description: Please enter Scheme
+            label: Scheme
+            mapping: 'manifest.spec.template.spec.containers[0].env[6].value'
+            name: scheme
+          - defaultValue: "user2" 
+            description: Please enter OES Username
+            label: Username
+            mapping: 'manifest.spec.template.spec.containers[0].env[7].value'
+            name: username
+          - defaultValue: "user2password" 
+            description: Please enter Password
+            label: Password
+            mapping: 'manifest.spec.template.spec.containers[0].env[8].value'
+            name: password
+          - defaultValue: "opa:8181"
+            description: Please enter OPA
+            label: Opa
+            mapping: 'manifest.spec.template.spec.containers[0].env[8].value'
+            name: opa
+        manifest:
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            name: jmeter
+            namespace: default
+            labels:                                                                 
+              spinnakerlabel: deljob
+          spec:
+            backoffLimit: 0
+            template:
+              spec:
+                containers:
+                  - args:
+                      - 
+                    env:
+                      - name: org
+                        value:
+                      - name: repo
+                        value:
+                      - name: folder
+                        value:
+                      - name: oesgate
+                        value:
+                      - name: oesui
+                        value:
+                      - name: port
+                        value:
+                      - name: scheme
+                        value:
+                      - name: username
+                        value:
+                      - name: password
+                        value:
+                      - name: opa
+                        value: 
+                    image: 'opsmx11/jmeter:v5'
+                    imagePullPolicy: Always
+                    name: jmeter
+                restartPolicy: Never
+      - label: Policy Stage
+        type: Policy Stage
+        description: Spinnaker Policy Evaluation and Decision Stage
+        cloudProvider: kubernetes
+        account: ibm-pspin
+        waitForCompletion: true
+        application: spin
+        parameters:
+          - defaultValue: "http://oes-sapor:8085"
+            description: Please enter the POLICY Proxy Hostname and Port
+            label: Policy Proxy
+            mapping: 'manifest.spec.template.spec.containers[0].env[0].value'
+            name: policyurl
+          - defaultValue: "/v1/data/opa/pipelines/datetimeslot"
+            description: Please enter Policy path that applies to this stage 
+            label: Policy Path
+            mapping: 'manifest.spec.template.spec.containers[0].env[1].value'
+            name: policypath
+          - defaultValue: ""
+            description: Please enter the Payload in single line 
+            label: Payload
+            mapping: 'manifest.spec.template.spec.containers[0].env[2].value'
+            name: payload
+          - defaultValue: "" 
+            description: Please enter Gate
+            label: Gate Name
+            mapping: 'manifest.spec.template.spec.containers[0].env[3].value'
+            name: gate
+          - defaultValue: ""
+            description: Please enter the Image IDs
+            label: Image IDs
+            mapping: 'manifest.spec.template.spec.containers[0].env[4].value'
+            name: imageids
+        manifest:
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            generateName: policystage-
+            namespace: default
+          spec:
+            backoffLimit: 0
+            template:
+              spec:
+                containers:
+                  - args:
+                      -
+                    env:
+                      - name: policyurl
+                        value:
+                      - name: policypath
+                        value:
+                      - name: payload
+                        value:
+                      - name: gate
+                        value:
+                      - name: imageids
+                        value:
+                      - name: application
+                        value: "${execution.application}"
+                      - name: name
+                        value: "${execution.name}"
+                      - name: time
+                        value: "${{execution.startTime} .toString()}"
+                      - name: user
+                        value: "${execution.authentication.user}"
+                      - name: executionid
+                        value: "${execution.id}"
+                    image: 'opsmxdev/policy:v2'
+                    imagePullPolicy: Always
+                    name: policystage
+                restartPolicy: Never
+      - label: VerificationGate
+        cloudProvider: kubernetes
+        application: spin
+        description: Stage for Verification Gate
+        propertyFile: verificationgate
+        account: ibm-pspin
+        type: Verification
+        waitForCompletion: true
+        parameters:
+          - defaultValue: ""
+            description: Please enter the Gate URL
+            label: Gate Url
+            mapping: 'manifest.spec.template.spec.containers[0].env[0].value'
+            name: gateurl
+          - defaultValue: "0.1" 
+            description: Please enter the Life Time in Hours like 0.5
+            label: LifeTimeHours
+            mapping: 'manifest.spec.template.spec.containers[0].env[1].value'
+            name: lifetime
+          - defaultValue: "70" 
+            description: Please enter the Minimum Canary Result
+            label: Minimum CanaryResult
+            mapping: 'manifest.spec.template.spec.containers[0].env[2].value'
+            name: minicanaryresult
+          - defaultValue: "90" 
+            description: Please enter the Canry Result Score
+            label: CanaryResult Score
+            mapping: 'manifest.spec.template.spec.containers[0].env[3].value'
+            name: canaryresultscore
+          - defaultValue: "true" 
+            description: Please Enable Log Analysis with true / false
+            label: Log Analysis
+            mapping: 'manifest.spec.template.spec.containers[0].env[4].value'
+            name: log
+          - defaultValue: "true"
+            description: Please Enable Metric Analysis with true / false
+            label: Metric Analysis
+            mapping: 'manifest.spec.template.spec.containers[0].env[5].value'
+            name: metric
+          - defaultValue: ""
+            description: Please enter Baseline Start Time in Epoch format. If it is empty will take it as current time
+            label: Baseline StartTime 
+            mapping: 'manifest.spec.template.spec.containers[0].env[6].value'
+            name: baselinestarttime
+          - defaultValue: "" 
+            description: Please enter Canry Start Time  in Epoch format. If it is empty will take it as current time
+            label: Canary StartTime
+            mapping: 'manifest.spec.template.spec.containers[0].env[7].value'
+            name: canarystarttime
+          - defaultValue: "" 
+            description: Please enter Gate Name that is created in OES
+            label: Gate Name
+            mapping: 'manifest.spec.template.spec.containers[0].env[8].value'
+            name: gate
+          - defaultValue: ""
+            description: Please enter the Image IDs
+            label: Image IDs
+            mapping: 'manifest.spec.template.spec.containers[0].env[9].value'
+            name: imageids
+        manifest:
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            generateName: verificationgate-
+            namespace: default
+          spec:
+            backoffLimit: 0
+            template:
+              spec:
+                containers:
+                  - args:
+                      -
+                    env:
+                      - name: gateurl
+                        value:
+                      - name: lifetime
+                        value:
+                      - name: minicanaryresult
+                        value:
+                      - name: canaryresultscore
+                        value:
+                      - name: log
+                        value:
+                      - name: metric
+                        value:
+                      - name: baselinestarttime
+                        value:
+                      - name: canarystarttime
+                        value:
+                      - name: gate
+                        value:
+                      - name: imageids
+                        value:
+                      - name: application
+                        value: "${execution.application}"
+                      - name: service
+                        value: "${execution.name}"
+                      - name: time
+                        value: "${{execution.startTime} .toString()}"
+                      - name: executionid
+                        value: "${execution.id}"
+                    image: 'opsmxdev/verificationgate-stage:v2'
+                    imagePullPolicy: Always
+                    name: verificationgate
+                restartPolicy: Never
+      - label: VisibilityApproval
+        cloudProvider: kubernetes
+        credentials: default
+        application: spin
+        description: Stage for Visibility Approval
+        propertyFile: visibilityapprove
+        account: ibm-pspin
+        type: Visibility Approval
+        waitForCompletion: true
+        parameters:
+          - defaultValue: "" 
+            description: Please enter the Gate URL
+            label: Gate Url
+            mapping: 'manifest.spec.template.spec.containers[0].env[0].value'
+            name: gateurl
+          - defaultValue: ""
+            description: Please enter the JIRA ID
+            label: Jira ID
+            mapping: 'manifest.spec.template.spec.containers[0].env[1].value'
+            name: jiraid
+          - defaultValue: ""
+            description: Please enter the Git Repo Name
+            label: Git Repo
+            mapping: 'manifest.spec.template.spec.containers[0].env[2].value'
+            name: gitrepo
+          - defaultValue: ""
+            description: Please enter the Git Commit Id 
+            label: Git Commit ID
+            mapping: 'manifest.spec.template.spec.containers[0].env[3].value'
+            name: gitcommitid
+          - defaultValue: ""
+            description: Please enter the Jenins Job
+            label: Jenkins Job Name
+            mapping: 'manifest.spec.template.spec.containers[0].env[4].value'
+            name: jenkinsjob
+          - defaultValue: ""
+            description: Please enter the Jenkins Build No 
+            label: Jenkins Build No 
+            mapping: 'manifest.spec.template.spec.containers[0].env[5].value'
+            name: jenkinsbuild
+          - defaultValue: ""
+            description: Please enter the Jenkins Artifact
+            label: Jenkins Artifact
+            mapping: 'manifest.spec.template.spec.containers[0].env[6].value'
+            name: jenkinsartifact
+          - defaultValue: ""
+            description: Please enter the Autopilot Canary
+            label: Autopilot Canary ID
+            mapping: 'manifest.spec.template.spec.containers[0].env[7].value'
+            name: canaryid
+          - defaultValue: ""
+            description: Please enter the Sonarqube Prject Key
+            label: Sonarqube Project Key
+            mapping: 'manifest.spec.template.spec.containers[0].env[8].value'
+            name: projectkey
+          - defaultValue: ""
+            description: Please enter the App Scan ID
+            label: AppScan ProjectID
+            mapping: 'manifest.spec.template.spec.containers[0].env[9].value'
+            name: appscanid
+          - defaultValue: ""
+            description: Please enter the Aqua Wave Image IDs
+            label: Aqua Wave Image IDs
+            mapping: 'manifest.spec.template.spec.containers[0].env[10].value'
+            name: aquawave
+          - defaultValue: ""
+            description: Please enter the Connector Name
+            label: Custom Connector Name
+            mapping: 'manifest.spec.template.spec.containers[0].env[11].value'
+            name: connector
+          - defaultValue: ""
+            description: Please enter the Header
+            label: Custom Connector Header 
+            mapping: 'manifest.spec.template.spec.containers[0].env[12].value'
+            name: header
+          - defaultValue: ""
+            description: Please enter the Connector Data as a payload
+            label: Custom Connector Data
+            mapping: 'manifest.spec.template.spec.containers[0].env[13].value'
+            name: connectordata
+          - defaultValue: ""
+            description: Please enter the Image IDs
+            label: Image IDs
+            mapping: 'manifest.spec.template.spec.containers[0].env[14].value'
+            name: imageids
+        manifest:
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            generateName: visibilityapprove-
+            namespace: default 
+          spec:
+            backoffLimit: 0
+            template:
+              spec:
+                containers:
+                  - args:
+                      -
+                    env:
+                      - name: gateurl
+                        value:
+                      - name: jiraid
+                        value:
+                      - name: gitrepo
+                        value:
+                      - name: gitcommitid
+                        value:
+                      - name: jenkinsjob
+                        value:
+                      - name: jenkinsbuild
+                        value:
+                      - name: jenkinsartifact
+                        value:
+                      - name: canaryid
+                        value:
+                      - name: projectkey
+                        value: 
+                      - name: appscanid
+                        value:
+                      - name: aquawave
+                        value:
+                      - name: connector
+                        value:
+                      - name: header
+                        value:
+                      - name: connectordata
+                        value:
+                      - name: imageids
+                        value:
+                      - name: executionid
+                        value: "${execution.id}"
+                    image: 'opsmxdev/visibility-stage:v2'
+                    imagePullPolicy: Always
+                    name: visibilityapprove
+                restartPolicy: Never
+      - label: TestVerification
+        cloudProvider: kubernetes
+        application: spin
+        description: Stage for TestVerification
+        propertyFile: testverification
+        account: ibm-pspin
+        type: Test Verification
+        waitForCompletion: true
+        parameters:
+          - defaultValue: ""
+            description: Please enter the Gate URL
+            label: Gate Url
+            mapping: 'manifest.spec.template.spec.containers[0].env[0].value'
+            name: gateurl
+          - defaultValue: "0.1" 
+            description: Please enter the Life Time in Hours like 0.5
+            label: LifeTimeHours
+            mapping: 'manifest.spec.template.spec.containers[0].env[1].value'
+            name: lifetime
+          - defaultValue: "70" 
+            description: Please enter the Minimum Canary Result
+            label: Minimum CanaryResult
+            mapping: 'manifest.spec.template.spec.containers[0].env[2].value'
+            name: minicanaryresult
+          - defaultValue: "90" 
+            description: Please enter the Canry Result Score
+            label: CanaryResult Score
+            mapping: 'manifest.spec.template.spec.containers[0].env[3].value'
+            name: canaryresultscore
+          - defaultValue: "true" 
+            description: Please Enable Log Analysis with true / false
+            label: Log Analysis
+            mapping: 'manifest.spec.template.spec.containers[0].env[4].value'
+            name: log
+          - defaultValue: ""
+            description: Please enter Baseline Start Time in Epoch format. If it is empty will take it as current time
+            label: Baseline StartTime 
+            mapping: 'manifest.spec.template.spec.containers[0].env[5].value'
+            name: baselinestarttime
+          - defaultValue: "" 
+            description: Please enter New Start Time  in Epoch format. If it is empty will take it as current time
+            label: New StartTime
+            mapping: 'manifest.spec.template.spec.containers[0].env[6].value'
+            name: canarystarttime
+          - defaultValue: "" 
+            description: Please enter Gate Name that is created in OES
+            label: Gate Name
+            mapping: 'manifest.spec.template.spec.containers[0].env[7].value'
+            name: gate
+          - defaultValue: ""
+            description: Please enter the Field name which contains Test Run Id in the Index eg., TestRunId
+            label: Test Run Key
+            mapping: 'manifest.spec.template.spec.containers[0].env[8].value'
+            name: testrunkey
+          - defaultValue: ""
+            description: Please enter Baseline Test Run Id of the Test Run to be used as baseline eg., 100
+            label: Baseline Test Run Id
+            mapping: 'manifest.spec.template.spec.containers[0].env[9].value'
+            name: baselinetestrunid
+          - defaultValue: ""
+            description: Please enter New Test Run Id Id of the current Test Run eg., 227
+            label: New Test Run Id
+            mapping: 'manifest.spec.template.spec.containers[0].env[10].value'
+            name: newtestrunid
+          - defaultValue: ""
+            description: Please enter Metadata associated with the current Test Run eg., { "Build Info" "http://opsmx.jenkins.com/123", "Code Repository" "http://opsmx.github.com", "Version" "v1.09" }
+            label: Test Run Info
+            mapping: 'manifest.spec.template.spec.containers[0].env[11].value'
+            name: testruninfo
+          - defaultValue: ""
+            description: Please enter the Image IDs
+            label: Image IDs
+            mapping: 'manifest.spec.template.spec.containers[0].env[12].value'
+            name: imageids
+        manifest:
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            generateName: testverification-
+            namespace: default
+          spec:
+            backoffLimit: 0
+            template:
+              spec:
+                containers:
+                  - args:
+                      -
+                    env:
+                      - name: gateurl
+                        value:
+                      - name: lifetime
+                        value:
+                      - name: minicanaryresult
+                        value:
+                      - name: canaryresultscore
+                        value:
+                      - name: log
+                        value:
+                      - name: baselinestarttime
+                        value:
+                      - name: canarystarttime
+                        value:
+                      - name: gate
+                        value:
+                      - name: testrunkey
+                        value:
+                      - name: baselinetestrunid
+                        value:
+                      - name: newtestrunid
+                        value:
+                      - name: testruninfo
+                        value:
+                      - name: imageids
+                        value:
+                      - name: application
+                        value: "${execution.application}"
+                      - name: service
+                        value: "${execution.name}"
+                      - name: time
+                        value: "${{execution.startTime} .toString()}"
+                      - name: executionid
+                        value: "${execution.id}"
+                    image: 'opsmxdev/testverification:v2'
+                    imagePullPolicy: Always
+                    name: testverification
+                restartPolicy: Never
