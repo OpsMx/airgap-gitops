@@ -1,10 +1,12 @@
+= Packer Templates and Custom Images
+
 NOTE:
 Files in halyard: ~/.hal/default/profiles/rosco/ goes to Rosco: /opt/rosco/config/ directory.
     Hence ~/.hal/default/profiles/rosco/packerTempates/* => /opt/rosco/config/packerTempates/*
 Yml files in halyard: ~/.hal/default/profiles/rosco[-<anytext>].yml goes to Rosco: /opt/spinnaker/config/ directory. 
 
 
-INSTRUCTION:
+== INSTRUCTION:
 - Copy packerTemplates/ directory to Halyard:~/.hal/default/profiles/rosco/
   This directory includes packer templates in .json format and supporting scripts
 
