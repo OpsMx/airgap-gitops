@@ -1,4 +1,6 @@
 artifactId: quay.io/opsmxpublic/ubi8-spin-rosco:0.25.0
+env:
+  SPRING_PROFILES_ACTIVE: "overrides,packer,local"
 kubernetes:
   volumes:
   - id: oes-cacerts

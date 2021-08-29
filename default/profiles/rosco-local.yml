@@ -1,2 +1,8 @@
+logging.level.root: info
+#Change the yumRepository value per your environment choice
+yumRepository: http://ops-rpm-bucket.s3-website-us-east-1.amazonaws.com
+rosco:
+  #configDir: /opt/rosco/config/packer
+  configDir: /opt/rosco/config/packerTemplates
 redis:
   connection: ${services.redis.baseUrl:redis://localhost:6379}

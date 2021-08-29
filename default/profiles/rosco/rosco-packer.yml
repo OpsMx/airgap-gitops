@@ -1,3 +1,4 @@
+#Sample file for profiles/rosco-packer.yml
 aws:
   bakeryDefaults:
     baseImages:
