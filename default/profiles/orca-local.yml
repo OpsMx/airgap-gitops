@@ -206,13 +206,16 @@ job:
           metadata:
             generateName: terraspinplanjob-
             namespace: SPINNAKER_NAMESPACE
+            labels:
+              app: opsmx-custom-job
           spec:
             backoffLimit: 0
             template:
               spec:
                 containers:
                   - command:
-                      - run.sh
+                      - bash
+                      - /usr/local/bin/run.sh
                     env:
                       - name: scriptaccount
                         value:
@@ -230,22 +233,32 @@ job:
                         value: 
                       - name: command
                         value: plan
+                      - name: HTTPS_PROXY
+                        value: http://135.148.41.253:8080
                     image: 'quay.io/opsmxpublic/customterraformstage:v1'
                     imagePullPolicy: Always
                     name: terraspinplan
                     volumeMounts:
                       - mountPath: /home/terraspin/opsmx/app/config/
                         name: opsmx-terraspin-backend-config
+                      - mountPath: /usr/local/bin/run.sh
+                        name: terraform-script
+                        subPath: run.sh
                 restartPolicy: Never
+                serviceAccount: SERVICE_ACCOUNT_CHANGE_ME
                 volumes:
                   - secret:
                       secretName: terraspinbackendconfig
                     name: opsmx-terraspin-backend-config
+                  - configMap:
+                      name: terraform-script
+                    name: terraform-script
       - label: TSApply
         cloudProvider: kubernetes
         application: sampleapp
         description: Stage for terraspin Apply operation
         type: customTSApplyJobStage
+        account: default
         waitForCompletion: true
         parameters:
           - defaultValue: ""
@@ -295,7 +308,8 @@ job:
               spec:
                 containers:
                   - command:
-                      - run.sh
+                      - bash
+                      - /usr/local/bin/run.sh
                     env:
                       - name: scriptaccount
                         value:
@@ -313,6 +327,8 @@ job:
                         value: 
                       - name: command
                         value: apply
+                      - name: HTTPS_PROXY
+                        value: http://135.148.41.253:8080
                     image: 'quay.io/opsmxpublic/customterraformstage:v1'
                     imagePullPolicy: Always
                     name: terraspinapply
@@ -320,6 +336,7 @@ job:
                       - mountPath: /home/terraspin/opsmx/app/config/
                         name: opsmx-terraspin-backend-config
                 restartPolicy: Never
+                serviceAccount: SERVICE_ACCOUNT_CHANGE_ME
                 volumes:
                   - secret:
                       secretName: terraspinbackendconfig
@@ -379,7 +396,8 @@ job:
               spec:
                 containers:
                   - command:
-                      - run.sh
+                      - bash
+                      - /usr/local/bin/run.sh
                     env:
                       - name: scriptaccount
                         value:
@@ -397,6 +415,8 @@ job:
                         value: 
                       - name: command
                         value: destroy
+                      - name: HTTPS_PROXY
+                        value: http://135.148.41.253:8080
                     image: 'quay.io/opsmxpublic/customterraformstage:v1'
                     imagePullPolicy: Always
                     name: terraspindestroy
@@ -404,6 +424,7 @@ job:
                       - mountPath: /home/terraspin/opsmx/app/config/
                         name: opsmx-terraspin-backend-config
                 restartPolicy: Never
+                serviceAccount: SERVICE_ACCOUNT_CHANGE_ME
                 volumes:
                   - secret:
                       secretName: terraspinbackendconfig

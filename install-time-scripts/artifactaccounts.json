@@ -1,0 +1,29 @@
+{
+      "artifactaccounts": [
+        {
+          "accountname": "OpsMx-artifact-account",
+          "artifacttype": "Github",
+          "host": "https://github.com",
+          "username": "mahessmx",
+          "password": "ghp_oN9JikSIgFIKh5slYw6dzptn2g02VZ"
+        },
+        {
+          "accountname": "aws",
+          "artifacttype": "aws",
+          "region": "us-west-2"
+        },
+        {
+          "accountname": "state-opsmx-s3",
+          "artifacttype": "s3",
+          "region": "us-west-2"
+        },
+         {
+          "accountname": "opsmx-azure",
+          "artifacttype": "azure",
+          "clientid": "fc061b7e-d5c5-4734fd69bd85b",
+          "clientsecret": "5_zm6e21sq3D-jiugsgp..W7f9HJ",
+          "tenantid": "d1ea7473-64d0-44d-a093-ad8041071ee6",
+          "subscriptionid": "959c83bf-06-4a56-a542-2067be19692e"
+        }
+      ]
+}
