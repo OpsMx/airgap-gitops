@@ -429,6 +429,83 @@ job:
                   - secret:
                       secretName: terraspinbackendconfig
                     name: opsmx-terraspin-backend-config
+      - label: "AnsibleJob"
+        cloudProvider: "kubernetes"
+        credentials: "target-aks-cluster"
+        application: "ansible"
+        description: "Stage for ansible"
+        account: "target-aks-cluster"
+        type: "customAnsibleStage"
+        waitForCompletion: true
+        parameters:
+        - defaultValue: ""
+          description: "Please enter the  Git repo url with out https://"
+          label: "Git repo"
+          mapping: "manifest.spec.template.spec.containers[0].env[0].value"
+          name: "gitrepo"
+        - defaultValue: ""
+          description: "Please enter ansiblefile location."
+          label: "Ansible file"
+          mapping: "manifest.spec.template.spec.containers[0].env[1].value"
+          name: "ansiblefileepo"
+        - defaultValue: ""
+          description: "Please enter override inventoryfile."
+          label: "Inventory file"
+          mapping: "manifest.spec.template.spec.containers[0].env[2].value"
+          name: "inventoryfile"
+        manifest:
+          apiVersion: "batch/v1"
+          kind: "Job"
+          metadata:
+            name: "ansiblejob"
+            namespace: "default"
+          spec:
+            backoffLimit: 0
+            template:
+              spec:
+                containers:
+                - command:
+                  - "bash"
+                  - "/tmp/initscript/run.sh"
+                  env:
+                  - name: "gitrepo"
+                    value: null
+                  - name: "ansiblefile"
+                    value: null
+                  - name: "inventoryfile"
+                    value: null
+                  - name: "gitusername"
+                    valueFrom:
+                      secretKeyRef:
+                        key: "gitusername"
+                        name: "ansible-secrets"
+                  - name: "gitpassword"
+                    valueFrom:
+                      secretKeyRef:
+                        key: "gitpassword"
+                        name: "ansible-secrets"
+                  - name: "nodeuser"
+                    valueFrom:
+                      secretKeyRef:
+                        key: "nodeuser"
+                        name: "ansible-secrets"
+                  - name: "userpassword"
+                    valueFrom:
+                      secretKeyRef:
+                        key: "userpassword"
+                        name: "ansible-secrets"
+                  image: "maheshopsmx/ansible-job-image:v2"
+                  imagePullPolicy: "Always"
+                  name: "ansible-test"
+                  volumeMounts:
+                  - mountPath: "/tmp/initscript/"
+                    name: "initscript"
+                restartPolicy: "Never"
+                volumes:
+                - configMap:
+                    default: 420
+                    name: "ansible-config"
+                  name: "initscript"
 webhook:
   preconfigured:
   - label: "JIRA: Wait for state"
