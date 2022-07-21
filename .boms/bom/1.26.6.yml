@@ -40,7 +40,7 @@ services:
     version: local:"0.21.0-20210322140019"
   "monitoring-daemon":
     commit: "f0082479844588a0d139e34077d2f689736eba15"
-    version: local:"0.19.3-20210415230021"
+    version: local:0.19.3-20210415230021   # Removed double quotes for this to work
   "monitoring-third-party":
     commit: "f0082479844588a0d139e34077d2f689736eba15"
     version: local:"0.19.3-20210415230021"
